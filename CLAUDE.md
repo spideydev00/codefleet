@@ -1,88 +1,101 @@
 # CLAUDE.md
 
-This file is the working map for editing this repository: the conventions, the layer layout, the non-obvious invariants, and pointers into `docs/`. It stays lean because it loads into every Claude Code session. Conceptual architecture, the provider table, and the production checklist live in the package page [packages/core/README.md](packages/core/README.md); detailed subsystem behavior lives in [`docs/`](docs/) and is linked inline below rather than duplicated here.
+This is the development map for CodeFleet. The published package is `@codefleet/core` in `packages/core/`; repository-level npm scripts delegate to that workspace.
 
-**Monorepo layout.** The published package `@codefleet/core` lives in [`packages/core/`](packages/core/) — its source, tests, examples, and the npm package README. The repo root is a private npm-workspaces manager (`package.json` `"private": true`) that delegates `build` / `lint` / `test` / `dev` to the package, so the commands below run from the root. Unprefixed code paths in this doc (`src/…`, `tests/…`, `cli/codefleet.ts`, the layer map below) are relative to `packages/core/`; `docs/` and the GitHub-facade `README.md` live at the repo root.
+CodeFleet is a deterministic repository-automation control plane. It invokes external model CLIs as child processes, but contains no model API or SDK integration. Its only runtime dependency is `zod`.
 
 ## Commands
 
+Run these from the repository root:
+
 ```bash
-npm run build          # Compile TypeScript (src/ → dist/)
-npm run dev            # Watch mode compilation
-npm run lint           # Type-check only (tsc --noEmit)
-npm test               # Run all tests (vitest run)
-npm run test:watch     # Vitest watch mode
-npm run test:coverage  # Vitest with v8 coverage
-npm run test:e2e       # E2E suite (requires RUN_E2E=1, real API keys)
-node packages/core/dist/cli/codefleet.js help   # After build: shell/CI CLI (`codefleet` when installed via npm bin)
+npm install
+npm run build          # Compile packages/core/src/ to packages/core/dist/
+npm run lint           # Type-check with tsc --noEmit
+npm test               # Run the Vitest suite
+npm run test:watch
+npm run test:coverage
+
+# After a build:
+node packages/core/dist/cli/codefleet.js --help
 ```
 
-Tests live in `tests/` (vitest), E2E under `tests/e2e/`. Standalone `examples/` need real API keys and are grouped by intent (`basics/`, `cookbook/`, `patterns/`, `providers/`, `integrations/`, `production/`).
+Tests live in `packages/core/tests/`. They use temporary Git repositories and fake CLI binaries; no API keys or network access are required.
 
-## Code style & workflow
+## Source layout
 
-- **ESM imports need `.js` extensions**: `import { X } from './foo.js'` even though the source is `foo.ts`. TypeScript strict; no eslint/prettier, so match existing patterns.
-- **After a change**, run `npm run lint` (typecheck) + the relevant tests. `tests/` need no API keys; `examples/` and `tests/e2e/` do.
-- **Keep runtime deps at three** (`@anthropic-ai/sdk`, `openai`, `zod`); new SDKs enter as lazy optional peers.
-- **PRs** must pass `npm run lint && npm test` (CI on Node 18/20/22). Conventional commits, reference PR/issue #. Full flow: [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md).
-
-## Architecture
-
-ES module TypeScript framework for multi-agent orchestration. **Three runtime dependencies only**: `@anthropic-ai/sdk`, `openai`, `zod`. Optional peers (`@aws-sdk/client-bedrock-runtime`, `@google/genai`, `@modelcontextprotocol/sdk`, `ai`) load lazily via dynamic `import()` so unused SDKs never resolve; the three-dependency promise covers `dependencies` only.
-
-**`CodeFleet`** (`src/orchestrator/orchestrator.ts`) is the top-level public API with three execution modes:
-
-1. **`runAgent(config, prompt)`** — single agent, one-shot
-2. **`runTeam(team, goal)`** — a temporary "coordinator" agent decomposes the goal into a task DAG (a single coordinator pass), then tasks run in dependency order
-3. **`runTasks(team, tasks)`** — explicit task pipeline with user-defined `dependsOn`
-
-### The Coordinator Pattern (runTeam)
-
-The framework's key feature. The coordinator receives goal + roster → emits a JSON task array (title, description, assignee, dependsOn) → `TaskQueue` resolves dependencies topologically (independent tasks run in parallel, dependents wait) → `Scheduler` auto-assigns unassigned tasks (`dependency-first` default; also `round-robin`, `least-busy`, `capability-match`) → each result is written to `SharedMemory` for later agents → the coordinator synthesizes the final output.
-
-### Layer Map
+All source paths below are relative to `packages/core/src/`.
 
 | Layer | Files | Responsibility |
 |-------|-------|----------------|
-| Orchestrator | `orchestrator/orchestrator.ts`, `scheduler.ts` | Top-level API, task decomposition, retry/backoff, coordinator |
-| Team | `team/team.ts`, `messaging.ts` | Agent roster, MessageBus (point-to-point + broadcast), SharedMemory binding |
-| Agent | `agent/agent.ts`, `runner.ts`, `pool.ts`, `structured-output.ts`, `loop-detector.ts` | Lifecycle (idle→running→completed/error), conversation loop, concurrency pool + per-agent mutex, structured-output validation, loop detection |
-| Task | `task/queue.ts`, `task.ts` | Dependency-aware queue, auto-unblock on completion, cascade failure to dependents |
-| Tool | `tool/framework.ts`, `executor.ts`, `mcp.ts`, `text-tool-extractor.ts`, `built-in/` | `defineTool()` + Zod, ToolRegistry, parallel batch exec, MCP bridge, local-model text tool-call fallback, filesystem sandbox |
-| LLM | `llm/adapter.ts` + 12 per-provider files + `openai-common.ts` + `reasoning-fallback.ts` | `LLMAdapter` (`chat` + `stream`); lazy `createAdapter()` factory; `baseURL` for OpenAI-compatible servers; cross-provider reasoning round-tripping |
-| Memory | `memory/shared.ts`, `store.ts` | Namespaced KV store (`agentName/key`), markdown summary injection; pluggable `MemoryStore` backends |
-| Dashboard | `dashboard/*.ts` | Pure HTML renderer for the post-run task DAG (no I/O) |
-| CLI | `cli/codefleet.ts` | Shell/CI entry; built to `dist/cli/codefleet.js`, exposed as the `codefleet` npm bin |
-| Utils | `utils/*.ts` | Semaphore, token accounting, keyword helpers, trace plumbing, secret/PII redaction |
-| Types / Errors | `types.ts`, `errors.ts` | All interfaces in one file (avoids circular deps); shared error types |
-| Exports | `index.ts`, `mcp.ts`, `ai-sdk.ts` | Root + `/mcp` + `/ai-sdk` subpaths so optional peers don't break the main import |
+| Planner | `planner/repo-inspector.ts`, `planner/prompt.ts`, `planner/planner.ts` | Lists tracked files, builds the planning prompt, invokes the selected orchestrator CLI, and validates the returned task DAG. |
+| Orchestrator CLI | `claude/claude-cli.ts`, `claude/conflict-resolver.ts` | Runs one-shot planning-compatible CLIs and converts conflict output into validated whole-file resolutions. |
+| Worker | `worker/process.ts`, `worker/prompt.ts`, `worker/codex-worker.ts`, `worker/fake-codex-worker.ts` | Non-shell process execution, implementation prompts, real Codex execution, and deterministic test execution. |
+| Worktree | `worktree/git.ts`, `worktree/workspace.ts`, `worktree/worktree-manager.ts` | Git command execution, isolated task branches/worktrees, changed-file detection, diffs, and task cleanup. |
+| Merge | `merge/conflict.ts`, `merge/conflict-resolver.ts`, `merge/integrator.ts` | Owns the run integration branch, serializes merges, resolves conflicts, runs configured checks, and rolls back failed integrations. |
+| Engine | `engine/concurrency.ts`, `engine/checks.ts`, `engine/types.ts`, `engine/engine.ts` | Schedules the validated DAG, bounds workers, skips blocked dependents, records outcomes, and guarantees cleanup. |
+| Report | `report/render.ts`, `report-types.ts` | Structured run report and English Markdown rendering. |
+| Providers | `providers/provider.ts`, `providers/presets.ts`, `providers/env-file.ts` | CLI command presets, prompt transport, and optional env-file loading. |
+| Config | `config/config.ts`, `config/interactive.ts` | Reads and writes `~/.codefleet/config.json` and implements the interactive preset selector. |
+| CLI | `cli/codefleet-cli.ts`, `cli/codefleet.ts` | Argument parsing, configuration commands, output selection, exit codes, and the executable entry. |
+| Orchestration entry | `orchestrator/run-codefleet.ts` | Connects planning, worker, resolver, engine, and renderer through `runCodeFleet()`. |
+| Utilities | `utils/redaction.ts` | Removes sensitive-looking values from worker process output. |
+| Root schemas and ports | `tasks-schema.ts`, `task-brief.ts`, `resolution-schema.ts`, `worker.ts`, `worker-result.ts`, `worker-kind.ts`, `errors.ts` | Zod validation and shared contracts. |
+| Public API | `index.ts` | Runtime and type exports for `@codefleet/core`. |
 
-### Non-obvious invariants
+## Execution path
 
-Behavior that isn't visible from any single file and will cause bugs if missed:
+```text
+user prompt
+  -> tracked-file snapshot
+  -> orchestrator CLI returns a validated task DAG
+  -> ready tasks run in isolated worktrees
+  -> successful changes are committed
+  -> task branches merge serially into the integration branch
+  -> conflicts go to the orchestrator CLI
+  -> configured checks accept or roll back the merge
+  -> report is rendered
+  -> worktrees and run branches are cleaned up
+```
 
-- **Tool errors never throw** — they're caught and returned as `ToolResult(isError: true)`. Task failures cascade to dependents (independent tasks continue); LLM API errors propagate to the caller.
-- **Built-in tools are default-deny** — `resolveTools()` (`agent/runner.ts`) grants a built-in (`bash`, `file_*`, `grep`, `glob`, `delegate_to_agent`) only when `AgentConfig.tools` or `toolPreset` is set; with neither, an agent resolves to **zero** built-in tools. Custom/runtime tools (`customTools` / `addTool`) are exempt — registration is the grant — but still honor `disallowedTools`. The runner gates execution on the same granted set, so a registered-but-ungranted call returns a `"not granted"` error instead of running. `OrchestratorConfig.defaultToolPreset` restores the prior allow-all. Uniform across `runAgent` / `runTeam` / `runTasks` / short-circuit / standalone `Agent`. → [docs/tool-configuration.md](docs/tool-configuration.md)
-- **`delegate_to_agent` is orchestration-only and needs a grant** — registered only inside `runTeam`/`runTasks` pool workers (never in standalone `runAgent` or the `isSimpleGoal` short-circuit), and like every built-in it must be granted via `tools: ['delegate_to_agent']` to be callable. Self-delegation, cycles, unknown targets, depth > `maxDelegationDepth` (default 3), and pool-slot exhaustion are all rejected in the tool; delegated token usage counts against the parent budget. → [docs/tool-configuration.md](docs/tool-configuration.md)
-- **Filesystem tools are sandboxed, `bash` is not** — `file_read/file_write/file_edit/grep/glob` resolve every path (symlinks included) within `AgentConfig.cwd` / `OrchestratorConfig.defaultCwd`, defaulting to `<cwd>/.agent-workspace`. `null` disables the sandbox; `process.cwd()` widens it. → [docs/tool-configuration.md](docs/tool-configuration.md)
-- **Reasoning is dropped unless opted in** — provider-native `ReasoningBlock`s the target adapter can't echo are silently dropped unless `AgentConfig.preserveReasoningAsText` is on (then converted to inline `<thinking>` text). `<thinking>` text is never parsed back into a signed block. → [docs/context-management.md](docs/context-management.md)
-- **Local-model tool-call fallback** — `text-tool-extractor.ts` only runs when the server emits no native `tool_calls` (Ollama/vLLM/LM Studio); native calls always win.
-- **Secrets are auto-redacted** from traces, bash output, and dashboard payloads (`utils/redaction.ts`).
+## Invariants
 
-### Subsystem docs
+- **Pure CLI integration.** Model execution always goes through `runProcess()` with argument arrays and `shell: false`. Do not add API or SDK clients.
+- **One runtime dependency.** `zod` is the only package in `dependencies`.
+- **Worker and resolver boundaries do not throw for expected failures.** `CodexWorker.run()` encodes process and parse failures in `WorkerRunRecord`; conflict resolution returns `undefined` when it cannot produce a valid resolution.
+- **Planning rejects unusable plans.** Planner process failures, missing JSON, invalid references, and cyclic DAGs throw `CodeFleetValidationError` before engine execution.
+- **Per-task isolation.** Every executable task gets its own branch-backed worktree created from the current integration tip.
+- **Dependencies require integration.** A task is ready only when every dependency succeeded and has merge outcome `merged` or `conflict-resolved`.
+- **No automatic retry.** Failed tasks run once. Their downstream dependents are skipped.
+- **Merges are serialized.** Workers may run concurrently, but integration uses one merge permit and one run-scoped integration branch.
+- **Failed changes are not merged.** Worker failures remain `not-merged`; check failures and unresolved conflicts restore the previous integration tip.
+- **Cleanup is guaranteed.** The engine cleanup path removes integration state and task worktrees unless `keepWorkspaces` is enabled.
+- **Checks are injectable.** `NoopCheckRunner` is the default; do not document automatic project tests unless a check runner is configured.
+- **Secrets are redacted.** Worker stdout and stderr are sanitized before entering run records and reports.
 
-Detailed behavior is documented in `docs/` — the single source of truth, so update it there rather than copying detail into this file:
+## Provider and configuration rules
 
-| Topic | Code | Doc |
-|-------|------|-----|
-| Context strategies, summarization, reasoning round-tripping | `agent/runner.ts`, `llm/reasoning-fallback.ts` | [context-management.md](docs/context-management.md) |
-| Tool presets, custom tools, sandbox, delegation, MCP | `tool/` | [tool-configuration.md](docs/tool-configuration.md) |
-| Providers, env vars, local servers, AI SDK bridge | `llm/` | [providers.md](docs/providers.md) |
-| Shared memory + custom backends | `memory/` | [shared-memory.md](docs/shared-memory.md) |
-| Tracing, progress events, dashboard | `utils/trace.ts`, `dashboard/` | [observability.md](docs/observability.md) |
-| CLI usage + JSON schemas | `cli/codefleet.ts` | [cli.md](docs/cli.md) |
-| CodeFleet (plan/execute/merge control plane) | `src/codefleet/` | [codefleet.md](docs/codefleet.md) |
+- Orchestrator presets: `claude` (default), `gemini`, `kimi`, `glm`, `deepseek`.
+- Worker presets: `codex` (default).
+- Claude-compatible presets load `~/.claude-<provider>-env` directly; they do not need a shell alias.
+- Saved defaults live in `~/.codefleet/config.json`.
+- CLI `--orchestrator` and `--worker` values override saved defaults.
+- Keep provider execution injectable for tests.
 
-### Adding an LLM Adapter
+## Code style
 
-Implement `LLMAdapter` (`chat` + `stream`), add the provider name to the `SupportedProvider` union, then register a `case` in the `createAdapter()` factory in `src/llm/adapter.ts` using a dynamic `await import('./your-provider.js')` so the SDK loads only when that provider is requested. OpenAI-compatible providers should accept `baseURL` and reuse helpers from `openai-common.ts`.
+- TypeScript strict mode.
+- ESM relative imports include `.js`.
+- No default exports.
+- Use `node:*` built-ins before adding code or dependencies.
+- Preserve non-shell child-process execution.
+- Match the existing `@fileoverview` headers and explicit exported types.
+- After source changes, run `npm run lint` and the relevant tests.
+
+## Documentation
+
+| Topic | Document |
+|-------|----------|
+| Product architecture and execution lifecycle | [docs/codefleet.md](docs/codefleet.md) |
+| CLI provider presets and env files | [docs/providers.md](docs/providers.md) |
+| Package usage and public API | [packages/core/README.md](packages/core/README.md) |

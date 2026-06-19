@@ -1,87 +1,163 @@
-# Providers
+# CLI provider configuration
 
-`codefleet` keeps the agent config shape stable across hosted, cloud, and local providers. Change `provider`, `model`, and the relevant credential; the rest of your team definition stays the same.
+CodeFleet providers are command-line presets. They select an executable, its base arguments, how the prompt is passed, and optionally an env file.
 
-```typescript
-const agent = {
-  name: 'my-agent',
-  provider: 'anthropic',
-  model: 'claude-sonnet-4-6',
-  systemPrompt: 'You are a helpful assistant.',
+CodeFleet does not call model APIs or SDKs. Every provider runs through the same non-shell child-process wrapper.
+
+## Defaults
+
+| Role | Default preset | Behavior |
+|------|----------------|----------|
+| Orchestrator | `claude` | `claude -p --model claude-opus-4-8 --effort medium`; prompt via stdin. |
+| Worker | `codex` | `codex exec` with `gpt-5.5`, high reasoning effort, and autonomous non-interactive execution. |
+
+The orchestrator plans the task DAG and resolves conflicts. The worker implements tasks inside isolated disposable Git worktrees.
+
+## Available orchestrator presets
+
+### `claude`
+
+Uses the authenticated Claude CLI:
+
+```text
+claude -p --model claude-opus-4-8 --effort medium
+```
+
+The prompt is sent through stdin.
+
+### `gemini`
+
+Uses the Gemini CLI in plan approval mode:
+
+```text
+gemini --approval-mode plan -o text -p <prompt>
+```
+
+The prompt is appended as an argument after `-p`.
+
+### `kimi`, `glm`, and `deepseek`
+
+These presets run `claude -p` against a Claude-compatible endpoint. Each preset loads a provider-specific env file:
+
+| Preset | Env file |
+|--------|----------|
+| `kimi` | `~/.claude-kimi-env` |
+| `glm` | `~/.claude-glm-env` |
+| `deepseek` | `~/.claude-deepseek-env` |
+
+Use this pattern with values supplied by your provider:
+
+```sh
+# ~/.claude-glm-env  (example pattern — fill in your provider's values)
+export ANTHROPIC_BASE_URL="<provider-anthropic-compatible-endpoint>"
+export ANTHROPIC_AUTH_TOKEN="<your-api-key>"
+```
+
+CodeFleet reads the env file directly, expands `~`, and merges its values with the inherited process environment. `PATH` and other existing variables remain available.
+
+Accepted env-file syntax includes:
+
+```sh
+# Comments and blank lines are ignored
+export KEY="quoted value"
+OTHER_KEY='another value'
+PLAIN_KEY=value
+```
+
+Kimi or DeepSeek env files may already exist if you previously configured those providers for manual Claude CLI use.
+
+For manual terminal use, an alias is optional:
+
+```sh
+alias glm='source ~/.claude-glm-env && claude'
+```
+
+CodeFleet does not use or require this alias.
+
+## Worker preset
+
+### `codex`
+
+The built-in worker preset invokes:
+
+```text
+codex exec -m gpt-5.5 -c model_reasoning_effort=high --dangerously-bypass-approvals-and-sandbox <prompt>
+```
+
+The prompt is passed as an argument. The bypass flag allows Codex to edit files autonomously and non-interactively; CodeFleet limits each task to an isolated disposable worktree and later derives the actual Git diff before integration.
+
+## Configure defaults
+
+Run the interactive selector:
+
+```bash
+codefleet config
+```
+
+Set defaults without the interactive prompt:
+
+```bash
+codefleet config --set-orchestrator glm
+codefleet config --set-worker codex
+```
+
+Both may be set in one command:
+
+```bash
+codefleet config --set-orchestrator gemini --set-worker codex
+```
+
+Inspect the saved configuration:
+
+```bash
+codefleet config --show
+```
+
+Defaults are stored in:
+
+```text
+~/.codefleet/config.json
+```
+
+Example:
+
+```json
+{
+  "orchestrator": "claude",
+  "worker": "codex"
 }
 ```
 
-## Built-In Provider Shortcuts
+## Override one run
 
-The framework ships a wired-in provider name for each of these. Set `provider` and the env var, and the adapter handles the endpoint.
+CLI flags take precedence over saved defaults:
 
-> Under the hood, Anthropic, Gemini, and Bedrock use provider-specific APIs. The other built-in shortcuts are pre-configured wrappers around OpenAI-compatible endpoints; same wire format as the OpenAI-compatible table below, with the `baseURL` already supplied.
-
-| Provider | Config | Env var | Example model | Notes |
-|----------|--------|---------|---------------|-------|
-| Anthropic (Claude) | `provider: 'anthropic'` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | Native Anthropic SDK. |
-| Gemini | `provider: 'gemini'` | `GEMINI_API_KEY` | `gemini-2.5-pro` | Native Google GenAI SDK. Requires `npm install @google/genai`. |
-| OpenAI (GPT) | `provider: 'openai'` | `OPENAI_API_KEY` | `gpt-4o` | |
-| Azure OpenAI | `provider: 'azure-openai'` | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` | `gpt-4` | Optional `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_DEPLOYMENT`. |
-| GitHub Copilot | `provider: 'copilot'` | `GITHUB_COPILOT_TOKEN` (falls back to `GITHUB_TOKEN`) | `gpt-4o` | Custom token-exchange flow on top of OpenAI protocol. |
-| Grok (xAI) | `provider: 'grok'` | `XAI_API_KEY` | `grok-4` | OpenAI-compatible; endpoint is `api.x.ai/v1`. |
-| DeepSeek | `provider: 'deepseek'` | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` | OpenAI-compatible. `deepseek-v4-flash` (default) or `deepseek-v4-pro` (flagship for coding); both support 1M context and 384K max output. Legacy `deepseek-chat` / `deepseek-reasoner` retire 2026-07-24. |
-| Doubao (Volcengine) | `provider: 'doubao'` | `ARK_API_KEY` | `doubao-seed-1-8-251228` | OpenAI-compatible. ByteDance Volcengine Ark endpoint `https://ark.cn-beijing.volces.com/api/v3`. See [`providers/doubao`](../packages/core/examples/providers/doubao.ts). |
-| Hunyuan (Tencent MaaS / TokenHub) | `provider: 'hunyuan'` | `HUNYUAN_API_KEY` | `hy3-preview` | OpenAI-compatible. Default endpoint `https://tokenhub.tencentmaas.com/v1` (Tencent's current platform; `sk-...` keys, Hunyuan 3 models). Tool calling verified on `hy3-preview`. See [`providers/hunyuan`](../packages/core/examples/providers/hunyuan.ts). |
-| Hunyuan (legacy Tencent Cloud) | `provider: 'hunyuan'` + `HUNYUAN_BASE_URL` | `HUNYUAN_API_KEY` | `hunyuan-turbos-latest` | Legacy endpoint `https://api.hunyuan.cloud.tencent.com/v1` (console.cloud.tencent.com/hunyuan key; separate key namespace). Tencent has announced this platform is being retired (sales stop 2026-06-30, full shutdown 2026-09-30). Set `HUNYUAN_BASE_URL=https://api.hunyuan.cloud.tencent.com/v1` to target it until then. Tool calling verified on `hunyuan-turbos` and `hunyuan-functioncall`. |
-| MiniMax (global) | `provider: 'minimax'` | `MINIMAX_API_KEY` | `MiniMax-M3` | OpenAI-compatible. |
-| MiniMax (China) | `provider: 'minimax'` + `MINIMAX_BASE_URL` | `MINIMAX_API_KEY` | `MiniMax-M3` | Set `MINIMAX_BASE_URL=https://api.minimaxi.com/v1`. |
-| MiMo | `provider: 'mimo'` | `MIMO_API_KEY` (+ optional `MIMO_BASE_URL`) | `mimo-v2.5-pro` | OpenAI-compatible. Defaults to pay-as-you-go endpoint `https://api.xiaomimimo.com/v1`; Token Plan keys (`tp-...`) require the cluster base URL from your subscription page, such as `https://token-plan-cn.xiaomimimo.com/v1`. Supports reasoning/tool-call loops through the built-in MiMo adapter. See [`providers/mimo`](../packages/core/examples/providers/mimo.ts). |
-| Qiniu | `provider: 'qiniu'` | `QINIU_API_KEY` | `deepseek-v3` | OpenAI-compatible. Endpoint `https://api.qnaigc.com/v1`; multiple model families, see [Qiniu AI docs](https://developer.qiniu.com/aitokenapi/12882/ai-inference-api). |
-| AWS Bedrock | `provider: 'bedrock'` | none (AWS SDK credential chain) | `anthropic.claude-3-5-haiku-20241022-v1:0` | No API key. Set `AWS_REGION` or pass `region` as the 4th arg to `createAdapter`. Credentials come from env vars, shared config, or IAM role. Newer Claude models can require a cross-region inference profile prefix such as `us.`. Also supports Llama, Mistral, and Cohere. See [`providers/bedrock`](../packages/core/examples/providers/bedrock.ts). Requires `npm install @aws-sdk/client-bedrock-runtime`. |
-
-## OpenAI-Compatible Providers
-
-No bundled shortcut is needed when a server speaks OpenAI Chat Completions. Use `provider: 'openai'` and point `baseURL` at the service.
-
-| Service | Config | Env var | Example model | Notes |
-|---------|--------|---------|---------------|-------|
-| Ollama (local) | `provider: 'openai'` + `baseURL: 'http://localhost:11434/v1'` | none | `llama3.1` | |
-| vLLM (local) | `provider: 'openai'` + `baseURL` | none | server-loaded | |
-| LM Studio (local) | `provider: 'openai'` + `baseURL` | none | server-loaded | |
-| llama.cpp server (local) | `provider: 'openai'` + `baseURL` | none | server-loaded | |
-| OpenRouter | `provider: 'openai'` + `baseURL: 'https://openrouter.ai/api/v1'` + `apiKey` | `OPENROUTER_API_KEY` | `openai/gpt-4o-mini` | |
-| Groq | `provider: 'openai'` + `baseURL: 'https://api.groq.com/openai/v1'` | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | |
-| Mistral | `provider: 'openai'` + `baseURL: 'https://api.mistral.ai/v1'` | `MISTRAL_API_KEY` | `mistral-large-latest` | See [`providers/mistral`](../packages/core/examples/providers/mistral.ts). |
-| MiMo | `provider: 'openai'` + `baseURL: 'https://api.xiaomimimo.com/v1'` | `MIMO_API_KEY` | `mimo-v2.5-pro` | Prefer the built-in `mimo` provider when using tool-calling agent loops. Token Plan users should set their `token-plan-*.xiaomimimo.com/v1` base URL. |
-| Zhipu GLM | `provider: 'openai'` + `baseURL: 'https://open.bigmodel.cn/api/paas/v4'` | `ZHIPU_API_KEY` | `glm-4-plus` | See [`providers/zhipu`](../packages/core/examples/providers/zhipu.ts). |
-| Qwen (DashScope) | `provider: 'openai'` + `baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1'` | `DASHSCOPE_API_KEY` | `qwen-plus` | See [`providers/qwen`](../packages/core/examples/providers/qwen.ts). |
-| Moonshot AI (Kimi) | `provider: 'openai'` + `baseURL: 'https://api.moonshot.ai/v1'` | `MOONSHOT_API_KEY` | `kimi-k2.5` | See [`providers/moonshot`](../packages/core/examples/providers/moonshot.ts). |
-| LiteLLM (proxy) | `provider: 'openai'` + `baseURL: 'http://localhost:4000/v1'` + `apiKey` | `LITELLM_API_KEY` (if proxy auth enabled) | any model on your proxy | [LiteLLM](https://github.com/BerriAI/litellm) unifies 100+ providers (OpenAI, Anthropic, Azure, Bedrock, Vertex, etc.) behind one OpenAI-compatible endpoint. Run `litellm --config config.yaml` and point `baseURL` at the proxy. |
-
-Other services can be connected the same way if they implement the OpenAI Chat Completions API, but they are not listed as verified providers here. For services where the key is not `OPENAI_API_KEY`, pass it explicitly via `apiKey`; otherwise the `openai` adapter falls back to `OPENAI_API_KEY`.
-
-## Local Model Tool-Calling
-
-The framework supports tool-calling with local models served by Ollama, vLLM, LM Studio, or llama.cpp. Tool-calling is handled natively through the OpenAI-compatible API.
-
-Verified local models include Gemma 4, Llama 3.1, Qwen 3, Mistral, and Phi-4. Ollama publishes its tool-capable models at [ollama.com/search?c=tools](https://ollama.com/search?c=tools).
-
-If a local model returns tool calls as text instead of the `tool_calls` wire format, the framework automatically extracts them from the text output. This helps with thinking models or misconfigured local servers.
-
-Use `timeoutMs` on `AgentConfig` for slow local inference:
-
-```typescript
-const localAgent = {
-  name: 'local',
-  model: 'llama3.1',
-  provider: 'openai',
-  baseURL: 'http://localhost:11434/v1',
-  apiKey: 'ollama',
-  tools: ['bash', 'file_read'],
-  timeoutMs: 120_000,
-}
+```bash
+codefleet "Refactor the authentication middleware" \
+  --orchestrator gemini \
+  --worker codex
 ```
 
-Highly quantized MoE models on consumer hardware can fall into repetition loops or hallucinate tool-call schemas under default sampling. `AgentConfig` exposes `topK`, `minP`, `frequencyPenalty`, `presencePenalty`, `parallelToolCalls`, and `extraBody` for server-specific knobs such as vLLM's `repetition_penalty`. See [`providers/local-quantized`](../packages/core/examples/providers/local-quantized.ts) for a complete setup.
+Programmatic callers use `orchestratorProvider` and `workerProvider`:
 
-## Troubleshooting
+```typescript
+import { runCodeFleet } from '@codefleet/core'
 
-- Model not calling tools? Confirm it appears in Ollama's [Tools category](https://ollama.com/search?c=tools).
-- Using Ollama? Update to the latest version with `ollama update`.
-- Proxy interfering with local servers? Use `no_proxy=localhost`.
+await runCodeFleet({
+  repoRoot: process.cwd(),
+  userPrompt: 'Refactor the authentication middleware',
+  orchestratorProvider: 'glm',
+  workerProvider: 'codex',
+})
+```
+
+Provider objects can also be injected directly when a named preset is not sufficient.
+
+## Requirements
+
+- `claude` preset: authenticated `claude` executable.
+- `gemini` preset: installed and authenticated `gemini` executable.
+- `kimi`, `glm`, or `deepseek`: installed `claude` executable plus the matching env file.
+- `codex` worker: installed `codex` executable.
+
+See [CodeFleet architecture](codefleet.md) for how provider output is validated and integrated.
