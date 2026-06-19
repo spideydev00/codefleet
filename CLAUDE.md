@@ -81,7 +81,7 @@ Detailed behavior is documented in `docs/` — the single source of truth, so up
 | Shared memory + custom backends | `memory/` | [shared-memory.md](docs/shared-memory.md) |
 | Tracing, progress events, dashboard | `utils/trace.ts`, `dashboard/` | [observability.md](docs/observability.md) |
 | CLI usage + JSON schemas | `cli/codefleet.ts` | [cli.md](docs/cli.md) |
-| Forge (plan/execute/merge control plane) | `src/forge/` | [forge.md](docs/forge.md) |
+| CodeFleet (plan/execute/merge control plane) | `src/codefleet/` | [codefleet.md](docs/codefleet.md) |
 
 ### Adding an LLM Adapter
 

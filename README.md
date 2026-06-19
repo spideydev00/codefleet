@@ -119,7 +119,7 @@ npm test               # run the test suite
 - [CLI](https://github.com/spideydev00/codefleet/blob/main/docs/cli.md) — the JSON-first `codefleet` binary for shell and CI.
 - [Consensus](https://github.com/spideydev00/codefleet/blob/main/docs/consensus.md) — the `runConsensus` proposer→judge primitive, the per-task `verify` hook, and the budget invariant.
 - [Model routing](https://github.com/spideydev00/codefleet/blob/main/docs/model-routing.md) — the opt-in `modelRouting` policy: match by phase / agent / role / priority / leaf, first match wins.
-- [Forge](docs/forge.md) — the plan→execute→merge control plane for repository changes.
+- [CodeFleet](docs/codefleet.md) — the plan→execute→merge control plane for repository changes.
 
 ## Contributing
 

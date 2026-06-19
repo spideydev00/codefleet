@@ -14,25 +14,12 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "codefleet": "dist/cli/codefleet.js",
-    "forge": "dist/forge/cli/forge.js"
+    "codefleet": "dist/cli/codefleet.js"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./mcp": {
-      "types": "./dist/mcp.d.ts",
-      "import": "./dist/mcp.js"
-    },
-    "./ai-sdk": {
-      "types": "./dist/ai-sdk.d.ts",
-      "import": "./dist/ai-sdk.js"
-    },
-    "./forge": {
-      "types": "./dist/forge/index.d.ts",
-      "import": "./dist/forge/index.js"
     },
     "./package.json": "./package.json"
   },
