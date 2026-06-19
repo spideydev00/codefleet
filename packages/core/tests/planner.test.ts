@@ -57,6 +57,11 @@ function options(mode: string) {
       command: process.execPath,
       baseArgs: [executable, mode],
     },
+    orchestrator: {
+      command: process.execPath,
+      baseArgs: [executable, mode],
+      passPromptVia: 'stdin',
+    },
   }
 }
 

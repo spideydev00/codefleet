@@ -11,6 +11,7 @@ import {
   type WorkerResult,
   type WorkerRunRecord,
 } from '../worker-result.js'
+import { redactSensitiveText } from '../utils/redaction.js'
 
 /**
  * One file written by a fake worker run.
@@ -90,7 +91,7 @@ export class FakeCodexWorker implements Worker {
         diff: '',
         exitCode: configuredResponse.exitCode ?? 0,
         durationMs: Date.now() - startedAt,
-        stdout: configuredResponse.stdout ?? '',
+        stdout: redactSensitiveText(configuredResponse.stdout ?? ''),
         stderr: '',
       }
     } catch (error) {
@@ -103,8 +104,8 @@ export class FakeCodexWorker implements Worker {
         diff: '',
         exitCode: response?.exitCode ?? 1,
         durationMs: Date.now() - startedAt,
-        stdout: response?.stdout ?? '',
-        stderr: reason,
+        stdout: redactSensitiveText(response?.stdout ?? ''),
+        stderr: redactSensitiveText(reason),
         parseError: reason,
       }
     }

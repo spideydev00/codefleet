@@ -79,3 +79,11 @@ export type {
 export {
   CodeFleetValidationError,
 } from './errors.js'
+export type {
+  OrchestratorProvider,
+  WorkerProvider
+} from './providers/provider.js'
+export {
+  getOrchestratorPreset,
+  getWorkerPreset
+} from './providers/presets.js'

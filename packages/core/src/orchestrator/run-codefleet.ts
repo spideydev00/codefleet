@@ -17,6 +17,8 @@ import type { CodeFleetReport } from '../report-types.js'
 import { renderReport } from '../report/render.js'
 import type { TasksPlan } from '../tasks-schema.js'
 import type { Worker } from '../worker.js'
+import { getOrchestratorPreset } from '../providers/presets.js'
+import type { OrchestratorProvider, WorkerProvider } from '../providers/provider.js'
 import {
   CodexWorker,
   type CodexWorkerOptions,
@@ -41,6 +43,8 @@ export interface RunCodeFleetOptions {
   planTasksFn?: (options: PlanTasksOptions) => Promise<TasksPlan>
   worker?: Worker
   resolver?: ConflictResolver
+  orchestratorProvider?: string | OrchestratorProvider
+  workerProvider?: string | WorkerProvider
 }
 
 /**
@@ -55,9 +59,10 @@ export async function runCodeFleet(
     userPrompt: options.userPrompt,
     claude: options.claude,
     inspect: options.inspect,
+    orchestrator: options.orchestratorProvider,
   })
-  const worker = options.worker ?? new CodexWorker(options.codex)
-  const resolver = options.resolver ?? new ClaudeConflictResolver(options.claude)
+  const worker = options.worker ?? new CodexWorker({ provider: options.workerProvider, ...options.codex })
+  const resolver = options.resolver ?? new ClaudeConflictResolver(options.claude, typeof options.orchestratorProvider === 'string' ? getOrchestratorPreset(options.orchestratorProvider) : options.orchestratorProvider ?? getOrchestratorPreset('claude'))
   const report = await runPlan(plan, {
     repoRoot: options.repoRoot,
     userPrompt: options.userPrompt,

@@ -60,6 +60,10 @@ function resolver(mode: string): ClaudeConflictResolver {
     command: process.execPath,
     baseArgs: [executable, mode],
     cwd: testRoot,
+  }, {
+    command: process.execPath,
+    baseArgs: [executable, mode],
+    passPromptVia: 'stdin',
   })
 }
 
@@ -87,6 +91,10 @@ describe('ClaudeConflictResolver', () => {
     const missing = new ClaudeConflictResolver({
       command: join(testRoot, 'missing-claude'),
       cwd: testRoot,
+    }, {
+      command: join(testRoot, 'missing-claude'),
+      baseArgs: [],
+      passPromptVia: 'stdin',
     })
 
     await expect(missing.resolve(conflict)).resolves.toBeUndefined()

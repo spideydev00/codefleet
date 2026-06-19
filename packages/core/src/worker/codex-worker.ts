@@ -9,8 +9,11 @@ import {
   synthesizeFailureResult,
   type WorkerRunRecord,
 } from '../worker-result.js'
+import { redactSensitiveText } from '../utils/redaction.js'
 import { buildWorkerPrompt } from './prompt.js'
 import { runProcess } from './process.js'
+import { getWorkerPreset } from '../providers/presets.js'
+import { resolveEnv, type WorkerProvider } from '../providers/provider.js'
 
 const HEALTHCHECK_TIMEOUT_MS = 3_000
 
@@ -22,6 +25,7 @@ export interface CodexWorkerOptions {
   readonly baseArgs?: string[]
   readonly env?: NodeJS.ProcessEnv
   readonly passPromptVia?: 'arg' | 'stdin'
+  readonly provider?: string | WorkerProvider
 }
 
 /**
@@ -34,12 +38,33 @@ export class CodexWorker implements Worker {
   private readonly baseArgs: string[]
   private readonly env?: NodeJS.ProcessEnv
   private readonly passPromptVia: 'arg' | 'stdin'
+  private readonly provider?: string | WorkerProvider
 
   constructor(options: CodexWorkerOptions = {}) {
-    this.command = options.command ?? 'codex'
-    this.baseArgs = options.baseArgs ?? ['exec']
+    
+    let command = options.command ?? 'codex'
+    let baseArgs = options.baseArgs ?? ['exec']
+    let passPromptVia = options.passPromptVia ?? 'arg'
+    
+    if (options.provider) {
+      const provider = typeof options.provider === 'string'
+        ? getWorkerPreset(options.provider)
+        : options.provider
+      command = provider.command
+      baseArgs = provider.baseArgs
+      passPromptVia = provider.passPromptVia
+    } else if (!options.command && !options.baseArgs && !options.passPromptVia) {
+      const provider = getWorkerPreset('codex')
+      command = provider.command
+      baseArgs = provider.baseArgs
+      passPromptVia = provider.passPromptVia
+    }
+
+    this.command = command
+    this.baseArgs = baseArgs
     this.env = options.env
-    this.passPromptVia = options.passPromptVia ?? 'arg'
+    this.passPromptVia = passPromptVia
+    this.provider = options.provider
   }
 
   async run(brief: TaskBrief, ctx: WorkerContext): Promise<WorkerRunRecord> {
@@ -49,7 +74,7 @@ export class CodexWorker implements Worker {
         command: this.command,
         args: this.passPromptVia === 'arg' ? [...this.baseArgs, prompt] : this.baseArgs,
         cwd: ctx.workspaceDir,
-        env: this.env ? { ...process.env, ...this.env } : undefined,
+        env: this.env ? { ...process.env, ...this.env } : (this.provider ? await resolveEnv(typeof this.provider === 'string' ? getWorkerPreset(this.provider) : this.provider) : undefined),
         input: this.passPromptVia === 'stdin' ? prompt : undefined,
         timeoutMs: ctx.timeoutMs,
         abortSignal: ctx.abortSignal,
@@ -79,8 +104,8 @@ export class CodexWorker implements Worker {
         diff: '',
         exitCode: processResult.exitCode,
         durationMs: processResult.durationMs,
-        stdout: processResult.stdout,
-        stderr: processResult.stderr,
+        stdout: redactSensitiveText(processResult.stdout),
+        stderr: redactSensitiveText(processResult.stderr),
         parseError: parsed.parseError,
       }
     } catch (error) {

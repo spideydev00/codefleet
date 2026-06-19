@@ -14,6 +14,8 @@ import {
   runClaude,
   type ClaudeCliOptions,
 } from './claude-cli.js'
+import { getOrchestratorPreset } from '../providers/presets.js'
+import { resolveEnv, type OrchestratorProvider } from '../providers/provider.js'
 
 function buildConflictPrompt(conflict: MergeConflict): string {
   const files = conflict.files
@@ -49,13 +51,27 @@ function buildConflictPrompt(conflict: MergeConflict): string {
  * Resolves whole-file conflicts through `claude -p`.
  */
 export class ClaudeConflictResolver implements ConflictResolver {
-  constructor(private readonly options: ClaudeCliOptions = {}) {}
+  constructor(
+    private readonly options: ClaudeCliOptions = {},
+    private readonly provider: OrchestratorProvider = getOrchestratorPreset('claude')
+  ) {}
 
   async resolve(
     conflict: MergeConflict,
   ): Promise<ConflictResolution | undefined> {
     try {
-      const result = await runClaude(buildConflictPrompt(conflict), this.options)
+      const prompt = buildConflictPrompt(conflict)
+      const env = await resolveEnv(this.provider)
+      const result = await runClaude(
+        prompt,
+        {
+          command: this.provider.command,
+          baseArgs: this.provider.passPromptVia === 'arg' ? [...this.provider.baseArgs, prompt] : this.provider.baseArgs,
+          env: env ? { ...process.env, ...env } : undefined,
+          
+          ...this.options,
+        }
+      )
       if (
         result.exitCode !== 0
         || result.timedOut
