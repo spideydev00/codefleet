@@ -6,6 +6,11 @@ import { describe, expect, it } from 'vitest'
 import { runCli } from '../src/cli/codefleet-cli.js'
 import type { RunCodeFleetOptions } from '../src/orchestrator/run-codefleet.js'
 import type { CodeFleetReport } from '../src/report-types.js'
+import { setMockHomeDir } from '../src/config/config.js'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { beforeEach, afterEach } from 'vitest'
 
 function report(status: CodeFleetReport['status']): CodeFleetReport {
   return {
@@ -100,6 +105,8 @@ describe('runCli', () => {
       maxParallel: 3,
       taskTimeoutMs: 5000,
       keepWorkspaces: true,
+      orchestratorProvider: 'claude',
+      workerProvider: 'codex',
     })
     expect(JSON.parse(output[0] ?? '')).toEqual(report('success'))
   })
@@ -119,6 +126,84 @@ describe('runCli', () => {
     expect(exitCode).toBe(64)
     expect(called).toBe(false)
     expect(errors[0]).toContain('Usage: codefleet')
+  })
+
+
+  describe('Config subcommands', () => {
+    let mockHome: string
+
+    beforeEach(async () => {
+      mockHome = await mkdtemp(join(tmpdir(), 'codefleet-cli-'))
+      setMockHomeDir(mockHome)
+    })
+
+    afterEach(async () => {
+      setMockHomeDir(undefined)
+      await rm(mockHome, { recursive: true, force: true })
+    })
+
+    it('shows config on --show', async () => {
+      const output: string[] = []
+      const exitCode = await runCli(['config', '--show'], {
+        stdout: t => output.push(t)
+      })
+      expect(exitCode).toBe(0)
+      expect(output[0]).toContain('{}')
+    })
+
+    it('sets config non-interactively', async () => {
+      const exitCode = await runCli(['config', '--set-orchestrator', 'gemini', '--set-worker', 'bash'])
+      expect(exitCode).toBe(0)
+
+      const output: string[] = []
+      await runCli(['config', '--show'], {
+        stdout: t => output.push(t)
+      })
+      const parsed = JSON.parse(output[0] ?? '{}')
+      expect(parsed).toEqual({ orchestrator: 'gemini', worker: 'bash' })
+    })
+
+    it('runs wizard when no options passed', async () => {
+      let wizardRan = false
+      const exitCode = await runCli(['config'], {
+        runConfigWizard: async () => {
+          wizardRan = true
+          return { orchestrator: 'claude', worker: 'codex' }
+        }
+      })
+      expect(exitCode).toBe(0)
+      expect(wizardRan).toBe(true)
+    })
+
+    it('uses configured defaults for run', async () => {
+      let received: RunCodeFleetOptions | undefined
+      const exitCode = await runCli(['A prompt'], {
+        runCodeFleet: async opts => {
+          received = opts
+          return { report: report('success'), rendered: '' }
+        },
+        resolveDefaults: async () => ({ orchestrator: 'gemini', worker: 'custom' })
+      })
+
+      expect(exitCode).toBe(0)
+      expect(received?.orchestratorProvider).toBe('gemini')
+      expect(received?.workerProvider).toBe('custom')
+    })
+    
+    it('command line flags override configured defaults', async () => {
+      let received: RunCodeFleetOptions | undefined
+      const exitCode = await runCli(['A prompt', '--orchestrator', 'kimi', '--worker', 'sh'], {
+        runCodeFleet: async opts => {
+          received = opts
+          return { report: report('success'), rendered: '' }
+        },
+        resolveDefaults: async () => ({ orchestrator: 'gemini', worker: 'custom' })
+      })
+
+      expect(exitCode).toBe(0)
+      expect(received?.orchestratorProvider).toBe('kimi')
+      expect(received?.workerProvider).toBe('sh')
+    })
   })
 
   it('prints thrown errors and returns 3 without throwing', async () => {

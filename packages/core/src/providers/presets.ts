@@ -58,3 +58,11 @@ export function getWorkerPreset(name: string): WorkerProvider {
   }
   return preset
 }
+
+export function listOrchestratorPresets(): string[] {
+  return Object.keys(ORCHESTRATOR_PRESETS)
+}
+
+export function listWorkerPresets(): string[] {
+  return Object.keys(WORKER_PRESETS)
+}

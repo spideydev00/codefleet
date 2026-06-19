@@ -2,6 +2,8 @@
  * @fileoverview Thin injectable command-line interface for CodeFleet.
  */
 
+import { resolveDefaults, loadConfig, saveConfig } from '../config/config.js'
+import { runConfigWizard } from '../config/interactive.js'
 import {
   runCodeFleet,
   type RunCodeFleetOptions,
@@ -9,6 +11,7 @@ import {
 
 const USAGE = [
   'Usage: codefleet [options] <prompt>',
+  '       codefleet config [options]',
   '       codefleet [options] --prompt <prompt>',
   '',
   'Options:',
@@ -18,7 +21,14 @@ const USAGE = [
   '  --timeout <ms>         Per-task timeout in milliseconds',
   '  --keep                 Preserve CodeFleet worktrees',
   '  --json                 Print the JSON report',
+  '  --orchestrator <name>  Override orchestrator preset',
+  '  --worker <name>        Override worker preset',
   '  --help, -h             Print this help',
+  '',
+  'Config Options:',
+  '  --show                 Print current config',
+  '  --set-orchestrator <n> Set default orchestrator',
+  '  --set-worker <n>       Set default worker',
 ].join('\n')
 
 /**
@@ -26,6 +36,8 @@ const USAGE = [
  */
 export interface CodeFleetCliDependencies {
   runCodeFleet?: typeof runCodeFleet
+  runConfigWizard?: typeof runConfigWizard
+  resolveDefaults?: typeof resolveDefaults
   stdout?: (text: string) => void
   stderr?: (text: string) => void
 }
@@ -44,6 +56,8 @@ function positiveInteger(value: string | undefined): number | undefined {
 function parseArguments(argv: string[]): ParsedArguments | undefined {
   let repoRoot = process.cwd()
   let userPrompt: string | undefined
+  let orchestratorProvider: string | undefined
+  let workerProvider: string | undefined
   let baseRef: string | undefined
   let maxParallel: number | undefined
   let taskTimeoutMs: number | undefined
@@ -72,6 +86,12 @@ function parseArguments(argv: string[]): ParsedArguments | undefined {
     } else if (argument === '--timeout') {
       taskTimeoutMs = positiveInteger(argv[++index])
       if (taskTimeoutMs === undefined) return undefined
+    } else if (argument === '--orchestrator') {
+      orchestratorProvider = argv[++index]
+      if (!orchestratorProvider) return undefined
+    } else if (argument === '--worker') {
+      workerProvider = argv[++index]
+      if (!workerProvider) return undefined
     } else if (argument?.startsWith('-')) {
       return undefined
     } else if (argument !== undefined) {
@@ -91,6 +111,8 @@ function parseArguments(argv: string[]): ParsedArguments | undefined {
       maxParallel,
       taskTimeoutMs,
       keepWorkspaces,
+      orchestratorProvider,
+      workerProvider,
     },
     json,
   }
@@ -112,11 +134,37 @@ export async function runCli(
       return 0
     }
 
+    if (argv[0] === 'config') {
+      if (argv.includes('--show')) {
+        const cfg = await loadConfig()
+        stdout(JSON.stringify(cfg, null, 2))
+        return 0
+      }
+      
+      const setOrchIdx = argv.indexOf('--set-orchestrator')
+      const setWorkIdx = argv.indexOf('--set-worker')
+      
+      if (setOrchIdx !== -1 || setWorkIdx !== -1) {
+        const update: Record<string, string> = {}
+        if (setOrchIdx !== -1 && argv[setOrchIdx + 1]) update.orchestrator = argv[setOrchIdx + 1]
+        if (setWorkIdx !== -1 && argv[setWorkIdx + 1]) update.worker = argv[setWorkIdx + 1]
+        await saveConfig(update)
+        return 0
+      }
+      
+      await (dependencies.runConfigWizard ?? runConfigWizard)()
+      return 0
+    }
+
     const parsed = parseArguments(argv)
     if (!parsed) {
       stderr(USAGE)
       return 64
     }
+
+    const defaults = await (dependencies.resolveDefaults ?? resolveDefaults)()
+    if (!parsed.options.orchestratorProvider) parsed.options.orchestratorProvider = defaults.orchestrator
+    if (!parsed.options.workerProvider) parsed.options.workerProvider = defaults.worker
 
     const result = await (dependencies.runCodeFleet ?? runCodeFleet)(parsed.options)
     stdout(parsed.json ? JSON.stringify(result.report, null, 2) : result.rendered)
