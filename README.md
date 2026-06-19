@@ -1,15 +1,5 @@
 <br />
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/spideydev00/codefleet/main/.github/brand/logo-mark-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/spideydev00/codefleet/main/.github/brand/logo-mark-light.svg">
-    <img alt="CodeFleet" src="https://raw.githubusercontent.com/spideydev00/codefleet/main/.github/brand/logo-mark-light.svg" width="96">
-  </picture>
-</p>
-
-<br />
-
 <h1 align="center">CodeFleet</h1>
 
 <p align="center">
@@ -17,7 +7,7 @@
   TypeScript-native multi-agent orchestration. Three runtime dependencies.
 </p>
 
-<p align="center">
+<!-- <p align="center">
   <a href="https://www.npmjs.com/package/@codefleet/core"><img src="https://img.shields.io/npm/v/@codefleet/core" alt="npm version"></a>
   <a href="https://github.com/spideydev00/codefleet/actions/workflows/ci.yml"><img src="https://github.com/spideydev00/codefleet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
@@ -26,17 +16,7 @@
   <a href="https://github.com/spideydev00/codefleet/blob/main/packages/core/package.json"><img src="https://img.shields.io/badge/runtime_deps-3-brightgreen" alt="runtime deps"></a>
   <a href="https://github.com/spideydev00/codefleet/stargazers"><img src="https://img.shields.io/github/stars/spideydev00/codefleet" alt="GitHub stars"></a>
   <a href="https://github.com/spideydev00/codefleet/network/members"><img src="https://img.shields.io/github/forks/spideydev00/codefleet" alt="GitHub forks"></a>
-</p>
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/spideydev00/codefleet/main/.github/brand/demo-dashboard-hero.gif" alt="Post-run dashboard replaying a completed team run: task DAG with per-node assignee, status, token breakdown, and agent output log" width="960" height="456" loading="eager">
-</p>
-
-<br />
-
-<p align="center">
-  <strong>English</strong> · <a href="./README_zh.md">中文</a>
-</p>
+</p> -->
 
 <br />
 

@@ -1,15 +1,5 @@
 <br />
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/spideydev00/codefleet/main/.github/brand/logo-mark-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/spideydev00/codefleet/main/.github/brand/logo-mark-light.svg">
-    <img alt="CodeFleet" src="https://raw.githubusercontent.com/spideydev00/codefleet/main/.github/brand/logo-mark-light.svg" width="96">
-  </picture>
-</p>
-
-<br />
-
 <h1 align="center">CodeFleet</h1>
 
 <p align="center">
@@ -17,7 +7,7 @@
   TypeScript-native multi-agent orchestration. Three runtime dependencies.
 </p>
 
-<p align="center">
+<!-- <p align="center">
   <a href="https://www.npmjs.com/package/@codefleet/core"><img src="https://img.shields.io/npm/v/@codefleet/core" alt="npm version"></a>
   <a href="https://github.com/spideydev00/codefleet/actions/workflows/ci.yml"><img src="https://github.com/spideydev00/codefleet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
@@ -26,17 +16,7 @@
   <a href="https://github.com/spideydev00/codefleet/blob/main/packages/core/package.json"><img src="https://img.shields.io/badge/runtime_deps-3-brightgreen" alt="runtime deps"></a>
   <a href="https://github.com/spideydev00/codefleet/stargazers"><img src="https://img.shields.io/github/stars/spideydev00/codefleet" alt="GitHub stars"></a>
   <a href="https://github.com/spideydev00/codefleet/network/members"><img src="https://img.shields.io/github/forks/spideydev00/codefleet" alt="GitHub forks"></a>
-</p>
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/spideydev00/codefleet/main/.github/brand/demo-dashboard-hero.gif" alt="Post-run dashboard replaying a completed team run: task DAG with per-node assignee, status, token breakdown, and agent output log" width="960" height="456" loading="eager">
-</p>
-
-<br />
-
-<p align="center">
-  <strong>English</strong> · <a href="./README_zh.md">中文</a>
-</p>
+</p> -->
 
 <br />
 
@@ -58,39 +38,59 @@ Requires Node.js >= 18.
 npm install @codefleet/core
 ```
 
-*Migrating from `@jackchen_me/codefleet`? That package is deprecated; install `@codefleet/core` instead.*
+_Migrating from `@jackchen_me/codefleet`? That package is deprecated; install `@codefleet/core` instead._
 
 ```typescript
-import { CodeFleet, type AgentConfig } from '@codefleet/core'
+import { CodeFleet, type AgentConfig } from "@codefleet/core";
 
 // Works with any OpenAI-compatible provider. Set OPENAI_API_KEY for OpenAI, or
 // set OPENAI_BASE_URL + OMA_MODEL for Groq, DeepSeek, Ollama, etc.
-const model = process.env.OMA_MODEL ?? 'gpt-5.4'
+const model = process.env.OMA_MODEL ?? "gpt-5.4";
 
 // Built-in tools are opt-in (default-deny): each agent gets only the tools it
 // lists in `tools` (or a `toolPreset`). List neither and the agent gets none.
 const agents: AgentConfig[] = [
-  { name: 'architect', model, systemPrompt: 'Design clean API contracts.', tools: ['file_write'] },
-  { name: 'developer', model, systemPrompt: 'Implement runnable TypeScript.', tools: ['bash', 'file_read', 'file_write', 'file_edit'] },
-  { name: 'reviewer', model, systemPrompt: 'Review correctness and security.', tools: ['file_read', 'grep'] },
-]
+  {
+    name: "architect",
+    model,
+    systemPrompt: "Design clean API contracts.",
+    tools: ["file_write"],
+  },
+  {
+    name: "developer",
+    model,
+    systemPrompt: "Implement runnable TypeScript.",
+    tools: ["bash", "file_read", "file_write", "file_edit"],
+  },
+  {
+    name: "reviewer",
+    model,
+    systemPrompt: "Review correctness and security.",
+    tools: ["file_read", "grep"],
+  },
+];
 
 const orchestrator = new CodeFleet({
-  defaultProvider: 'openai',
+  defaultProvider: "openai",
   defaultModel: model,
   defaultBaseURL: process.env.OPENAI_BASE_URL, // unset = OpenAI
-  onProgress: (event) => console.log(event.type, event.task ?? event.agent ?? ''),
-})
+  onProgress: (event) =>
+    console.log(event.type, event.task ?? event.agent ?? ""),
+});
 
-const team = orchestrator.createTeam('api-team', { name: 'api-team', agents, sharedMemory: true })
+const team = orchestrator.createTeam("api-team", {
+  name: "api-team",
+  agents,
+  sharedMemory: true,
+});
 
 // Built-in filesystem tools default to a `<cwd>/.agent-workspace` sandbox.
 const result = await orchestrator.runTeam(
   team,
   `Create a REST API for a todo list in ${process.cwd()}/.agent-workspace/todo-api/`,
-)
+);
 
-console.log(result.success, result.totalTokenUsage.output_tokens)
+console.log(result.success, result.totalTokenUsage.output_tokens);
 ```
 
 ### Run an example locally
@@ -123,11 +123,11 @@ Local models via Ollama need no API key, see [`providers/ollama`](examples/provi
 
 ## Three Ways to Run
 
-| Mode | Method | When to use | Example |
-|------|--------|-------------|---------|
-| Single agent | `runAgent()` | One agent, one prompt | [`basics/single-agent`](examples/basics/single-agent.ts) |
-| Auto-orchestrated team | `runTeam()` | Give a goal, let the coordinator plan and execute | [`basics/team-collaboration`](examples/basics/team-collaboration.ts) |
-| Explicit pipeline | `runTasks()` | You define the task graph and assignments | [`basics/task-pipeline`](examples/basics/task-pipeline.ts) |
+| Mode                   | Method       | When to use                                       | Example                                                              |
+| ---------------------- | ------------ | ------------------------------------------------- | -------------------------------------------------------------------- |
+| Single agent           | `runAgent()` | One agent, one prompt                             | [`basics/single-agent`](examples/basics/single-agent.ts)             |
+| Auto-orchestrated team | `runTeam()`  | Give a goal, let the coordinator plan and execute | [`basics/team-collaboration`](examples/basics/team-collaboration.ts) |
+| Explicit pipeline      | `runTasks()` | You define the task graph and assignments         | [`basics/task-pipeline`](examples/basics/task-pipeline.ts)           |
 
 For answers that need scrutiny, `runConsensus()` runs a proposer→judge verification loop (with an opt-in per-task `verify` hook). See [Consensus](https://github.com/spideydev00/codefleet/blob/main/docs/consensus.md).
 
@@ -135,32 +135,32 @@ Preview the coordinator's task DAG without executing it, or pin that plan and re
 
 ```ts
 // Decompose once and review the plan
-const preview = await orchestrator.runTeam(team, goal, { planOnly: true })
+const preview = await orchestrator.runTeam(team, goal, { planOnly: true });
 
 // Turn it into a diffable, version-controllable artifact (plain JSON)
-const plan = orchestrator.createPlanArtifact(preview)
+const plan = orchestrator.createPlanArtifact(preview);
 
 // Later: replay the exact graph (same task ids, deps, assignees), no coordinator
-const result = await orchestrator.runFromPlan(team, plan)
+const result = await orchestrator.runFromPlan(team, plan);
 ```
 
 Route orchestration phases to different models with an opt-in `modelRouting` policy: a flagship model plans, a cheap model runs the leaf tasks. Match by phase, agent, task role/priority, or leaf status; first match wins, and omitting it leaves model selection unchanged. See [Model routing](https://github.com/spideydev00/codefleet/blob/main/docs/model-routing.md).
 
 ## Features
 
-| Capability | What you get |
-|------------|--------------|
-| **Goal-driven coordinator** | One `runTeam(team, goal)` call decomposes the goal into a task DAG, parallelizes independents, and synthesizes the result. Unassigned tasks are auto-scheduled — `dependency-first` (default), `round-robin`, `least-busy`, or `capability-match`. |
-| **Mix providers in one team** | 12 built-in providers plus any OpenAI-compatible endpoint (Ollama, vLLM, LM Studio, OpenRouter, Groq), mixed freely in one team. Local servers that emit tool calls as plain text are recovered by a fallback parser. ([full list](#supported-providers) · [setup](https://github.com/spideydev00/codefleet/blob/main/docs/providers.md)) |
-| **Extended thinking / reasoning** | One `thinking` config maps to Anthropic thinking, Gemini `thinkingConfig`, and OpenAI `reasoning_effort`; reasoning is streamed as events, with opt-in preservation across a provider switch. ([`cross-provider-reasoning`](examples/patterns/cross-provider-reasoning.ts)) |
-| **Tools + MCP** | 6 built-in (`bash`, `file_*`, `grep`, `glob`), all **opt-in** (default-deny — grant via `tools` / `toolPreset`), plus `delegate_to_agent` handoff (cycle + depth guards), custom tools via `defineTool()` + Zod, stdio MCP servers via `connectMCPTools()`. ([tool config](https://github.com/spideydev00/codefleet/blob/main/docs/tool-configuration.md)) |
-| **Streaming + structured output** | Token-by-token streaming on every adapter (per-agent during team runs via `onAgentStream`); Zod-validated final answer with auto-retry on parse failure. ([`structured-output`](examples/patterns/structured-output.ts)) |
-| **Human-in-the-loop** | Gate execution with `onPlanReady` (approve the plan before any agent runs) and `onApproval` (approve between task rounds), or inspect first with `planOnly`. |
-| **Pin and replay plans** | Serialize a `planOnly` decomposition with `createPlanArtifact`, then `runFromPlan` replays the exact task graph without re-invoking the coordinator. ([`patterns/plan-replay`](examples/patterns/plan-replay.ts)) |
-| **Lifecycle hooks + cancellation** | `beforeRun` rewrites the prompt, `afterRun` post-processes or rejects the result; pass an `AbortSignal` to cancel a run in flight. |
-| **Configurable coordinator** | Override the coordinator's model, provider, adapter, system prompt, or tools via `runTeam(team, goal, { coordinator })`. |
-| **Observability** | `onProgress` events, `onTrace` spans, post-run HTML dashboard rendering the executed task DAG. API keys and tokens are redacted from traces, bash output, and the dashboard. ([observability guide](https://github.com/spideydev00/codefleet/blob/main/docs/observability.md)) |
-| **Pluggable shared memory** | Default in-process KV; swap in Redis / Postgres / your own backend by implementing `MemoryStore`. ([shared memory](https://github.com/spideydev00/codefleet/blob/main/docs/shared-memory.md)) |
+| Capability                         | What you get                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Goal-driven coordinator**        | One `runTeam(team, goal)` call decomposes the goal into a task DAG, parallelizes independents, and synthesizes the result. Unassigned tasks are auto-scheduled — `dependency-first` (default), `round-robin`, `least-busy`, or `capability-match`.                                                                                                                                    |
+| **Mix providers in one team**      | 12 built-in providers plus any OpenAI-compatible endpoint (Ollama, vLLM, LM Studio, OpenRouter, Groq), mixed freely in one team. Local servers that emit tool calls as plain text are recovered by a fallback parser. ([full list](#supported-providers) · [setup](https://github.com/spideydev00/codefleet/blob/main/docs/providers.md))                                             |
+| **Extended thinking / reasoning**  | One `thinking` config maps to Anthropic thinking, Gemini `thinkingConfig`, and OpenAI `reasoning_effort`; reasoning is streamed as events, with opt-in preservation across a provider switch. ([`cross-provider-reasoning`](examples/patterns/cross-provider-reasoning.ts))                                                                                                           |
+| **Tools + MCP**                    | 6 built-in (`bash`, `file_*`, `grep`, `glob`), all **opt-in** (default-deny — grant via `tools` / `toolPreset`), plus `delegate_to_agent` handoff (cycle + depth guards), custom tools via `defineTool()` + Zod, stdio MCP servers via `connectMCPTools()`. ([tool config](https://github.com/spideydev00/codefleet/blob/main/docs/tool-configuration.md))                            |
+| **Streaming + structured output**  | Token-by-token streaming on every adapter (per-agent during team runs via `onAgentStream`); Zod-validated final answer with auto-retry on parse failure. ([`structured-output`](examples/patterns/structured-output.ts))                                                                                                                                                              |
+| **Human-in-the-loop**              | Gate execution with `onPlanReady` (approve the plan before any agent runs) and `onApproval` (approve between task rounds), or inspect first with `planOnly`.                                                                                                                                                                                                                          |
+| **Pin and replay plans**           | Serialize a `planOnly` decomposition with `createPlanArtifact`, then `runFromPlan` replays the exact task graph without re-invoking the coordinator. ([`patterns/plan-replay`](examples/patterns/plan-replay.ts))                                                                                                                                                                     |
+| **Lifecycle hooks + cancellation** | `beforeRun` rewrites the prompt, `afterRun` post-processes or rejects the result; pass an `AbortSignal` to cancel a run in flight.                                                                                                                                                                                                                                                    |
+| **Configurable coordinator**       | Override the coordinator's model, provider, adapter, system prompt, or tools via `runTeam(team, goal, { coordinator })`.                                                                                                                                                                                                                                                              |
+| **Observability**                  | `onProgress` events, `onTrace` spans, post-run HTML dashboard rendering the executed task DAG. API keys and tokens are redacted from traces, bash output, and the dashboard. ([observability guide](https://github.com/spideydev00/codefleet/blob/main/docs/observability.md))                                                                                                        |
+| **Pluggable shared memory**        | Default in-process KV; swap in Redis / Postgres / your own backend by implementing `MemoryStore`. ([shared memory](https://github.com/spideydev00/codefleet/blob/main/docs/shared-memory.md))                                                                                                                                                                                         |
 | **Sandboxed filesystem workspace** | Built-in filesystem tools are sandboxed to `<cwd>/.agent-workspace` by default; agents sharing the default configuration share this root. For per-agent isolation, set `AgentConfig.cwd`; for a different shared root, set `OrchestratorConfig.defaultCwd`; pass `null` to disable. ([sandbox config](https://github.com/spideydev00/codefleet/blob/main/docs/tool-configuration.md)) |
 
 Production controls ([context strategies](https://github.com/spideydev00/codefleet/blob/main/docs/context-management.md), task retry with backoff, loop detection, tool output truncation/compression) are covered in the [Production Checklist](#production-checklist).
@@ -172,23 +172,25 @@ Fine-grained control over a `runTeam` run. All optional; defaults keep behavior 
 **Inject team context.** Prepend the goal, roster, and this worker's role to every worker prompt — helps workers stay aligned and makes multi-step runs easier to debug. Off by default; worker prompts stay byte-identical when omitted.
 
 ```ts
-await orchestrator.runTeam(team, goal, { revealCoordinator: true })
+await orchestrator.runTeam(team, goal, { revealCoordinator: true });
 ```
 
 **Approve before running.** Inspect the coordinator's plan before any agent executes, and again between task rounds. These live on the orchestrator. Returning `false` aborts; remaining tasks are marked `skipped`.
 
 ```ts
 const orchestrator = new CodeFleet({
-  onPlanReady: async (tasks) => tasks.length <= 10,        // gate the whole plan
-  onApproval:  async (completed, next) => next.length > 0, // gate each round
-})
+  onPlanReady: async (tasks) => tasks.length <= 10, // gate the whole plan
+  onApproval: async (completed, next) => next.length > 0, // gate each round
+});
 ```
 
 **Cancel a run.** Pass an `AbortSignal`; aborting stops the run in flight.
 
 ```ts
-const controller = new AbortController()
-const run = orchestrator.runTeam(team, goal, { abortSignal: controller.signal })
+const controller = new AbortController();
+const run = orchestrator.runTeam(team, goal, {
+  abortSignal: controller.signal,
+});
 // controller.abort() from elsewhere to cancel
 ```
 
@@ -196,8 +198,11 @@ const run = orchestrator.runTeam(team, goal, { abortSignal: controller.signal })
 
 ```ts
 await orchestrator.runTeam(team, goal, {
-  coordinator: { model: 'claude-opus-4-6', instructions: 'Prefer fewer, larger tasks.' },
-})
+  coordinator: {
+    model: "claude-opus-4-6",
+    instructions: "Prefer fewer, larger tasks.",
+  },
+});
 ```
 
 **Fan-out without dependencies.** For MapReduce-style parallelism, use `AgentPool.runParallel()` directly. See [`patterns/fan-out-aggregate`](examples/patterns/fan-out-aggregate.ts).
@@ -267,12 +272,12 @@ Run any script with `npx tsx examples/<path>.ts`.
 
 A quick router. Mechanism breakdown follows.
 
-| If you need | Pick |
-|-------------|------|
-| Fixed production topology with mature checkpointing | LangGraph JS |
-| Explicit Supervisor + hand-wired workflows | Mastra |
-| Python stack with mature multi-agent ecosystem | CrewAI |
-| AI app toolkit with broad model-provider support | Vercel AI SDK |
+| If you need                                                 | Pick          |
+| ----------------------------------------------------------- | ------------- |
+| Fixed production topology with mature checkpointing         | LangGraph JS  |
+| Explicit Supervisor + hand-wired workflows                  | Mastra        |
+| Python stack with mature multi-agent ecosystem              | CrewAI        |
+| AI app toolkit with broad model-provider support            | Vercel AI SDK |
 | **TypeScript, goal to result with auto task decomposition** | **codefleet** |
 
 **vs. LangGraph JS.** LangGraph compiles a declarative graph (nodes, edges, conditional routing) into an invokable. `codefleet` runs a Coordinator that decomposes the goal into a task DAG at runtime, then auto-parallelizes independents. Same end (orchestrated execution), opposite directions: LangGraph is graph-first, CodeFleet is goal-first.
@@ -332,18 +337,18 @@ Change `provider`, `model`, and set the env var. The agent config shape stays th
 
 ```typescript
 const agent: AgentConfig = {
-  name: 'my-agent',
-  provider: 'anthropic',
-  model: 'claude-sonnet-4-6',
-  systemPrompt: 'You are a helpful assistant.',
-}
+  name: "my-agent",
+  provider: "anthropic",
+  model: "claude-sonnet-4-6",
+  systemPrompt: "You are a helpful assistant.",
+};
 ```
 
-| Kind | How to configure | Services |
-|------|------------------|----------|
-| Built-in shortcuts | Set `provider` to `anthropic`, `gemini`, `openai`, `azure-openai`, `copilot`, `grok`, `deepseek`, `doubao`, `hunyuan`, `minimax`, `mimo`, `qiniu`, or `bedrock`; the framework supplies the endpoint. | Anthropic, Gemini, OpenAI, Azure OpenAI, GitHub Copilot, xAI Grok, DeepSeek, Doubao (Volcengine), Hunyuan (Tencent MaaS), MiniMax, MiMo, Qiniu, AWS Bedrock |
-| OpenAI-compatible endpoints | Set `provider: 'openai'` plus `baseURL` and, when needed, `apiKey`. | Ollama, vLLM, LM Studio, llama.cpp server, OpenRouter, Groq, Mistral, Moonshot (Kimi), Qwen, Zhipu |
-| Vercel AI SDK | Import `AISdkAdapter` from `@codefleet/core/ai-sdk`; install optional peer `ai` plus an `@ai-sdk/*` provider. | [Any AI SDK provider](https://ai-sdk.dev/providers) (60+ models and hosts) |
+| Kind                        | How to configure                                                                                                                                                                                      | Services                                                                                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Built-in shortcuts          | Set `provider` to `anthropic`, `gemini`, `openai`, `azure-openai`, `copilot`, `grok`, `deepseek`, `doubao`, `hunyuan`, `minimax`, `mimo`, `qiniu`, or `bedrock`; the framework supplies the endpoint. | Anthropic, Gemini, OpenAI, Azure OpenAI, GitHub Copilot, xAI Grok, DeepSeek, Doubao (Volcengine), Hunyuan (Tencent MaaS), MiniMax, MiMo, Qiniu, AWS Bedrock |
+| OpenAI-compatible endpoints | Set `provider: 'openai'` plus `baseURL` and, when needed, `apiKey`.                                                                                                                                   | Ollama, vLLM, LM Studio, llama.cpp server, OpenRouter, Groq, Mistral, Moonshot (Kimi), Qwen, Zhipu                                                          |
+| Vercel AI SDK               | Import `AISdkAdapter` from `@codefleet/core/ai-sdk`; install optional peer `ai` plus an `@ai-sdk/*` provider.                                                                                         | [Any AI SDK provider](https://ai-sdk.dev/providers) (60+ models and hosts)                                                                                  |
 
 See [docs/providers.md](https://github.com/spideydev00/codefleet/blob/main/docs/providers.md) for env vars, model examples, local tool-calling, timeouts, and troubleshooting.
 
@@ -352,20 +357,20 @@ See [docs/providers.md](https://github.com/spideydev00/codefleet/blob/main/docs/
 Install the optional peer [`ai`](https://www.npmjs.com/package/ai) plus any [`@ai-sdk` provider](https://ai-sdk.dev/providers) you need (for example [`@ai-sdk/openai`](https://www.npmjs.com/package/@ai-sdk/openai)). Pass `adapter: new AISdkAdapter(model)` on `AgentConfig` to route that agent through the AI SDK instead of the built-in `provider` factory. `provider`, `apiKey`, `baseURL`, and `region` are ignored when `adapter` is set. Mixed teams work as usual: only agents with `adapter` use the AI SDK.
 
 ```typescript
-import { openai } from '@ai-sdk/openai'
-import { AISdkAdapter } from '@codefleet/core/ai-sdk'
-import { CodeFleet } from '@codefleet/core'
+import { openai } from "@ai-sdk/openai";
+import { AISdkAdapter } from "@codefleet/core/ai-sdk";
+import { CodeFleet } from "@codefleet/core";
 
-const codefleet = new CodeFleet()
+const codefleet = new CodeFleet();
 await codefleet.runAgent(
   {
-    name: 'researcher',
-    model: 'gpt-4o',
-    adapter: new AISdkAdapter(openai('gpt-4o')),
-    systemPrompt: 'You are a researcher.',
+    name: "researcher",
+    model: "gpt-4o",
+    adapter: new AISdkAdapter(openai("gpt-4o")),
+    systemPrompt: "You are a researcher.",
   },
-  'What are the latest AI trends?',
-)
+  "What are the latest AI trends?",
+);
 ```
 
 The coordinator accepts the same hook via `runTeam(team, goal, { coordinator: { adapter: new AISdkAdapter(...) } })`.
@@ -374,18 +379,18 @@ The coordinator accepts the same hook via `runTeam(team, goal, { coordinator: { 
 
 Before going live, wire up the controls that protect token spend, recover from failure, and let you debug.
 
-| Concern | Knob | Where it lives |
-|---------|------|----------------|
-| Bound the conversation | `maxTurns` per agent + `contextStrategy` (`sliding-window` / `summarize` / `compact` / `custom`) | `AgentConfig` |
-| Bound wall-clock time | `timeoutMs` per agent (aborts a run that hangs, common with local models) | `AgentConfig` |
-| Cap tool output | `maxToolOutputChars` (or per-tool `maxOutputChars`) + `compressToolResults: true` | `AgentConfig` and `defineTool()` |
-| Recover from failure | Per-task `maxRetries`, `retryDelayMs`, `retryBackoff` (exponential multiplier) | Task config used via `runTasks()` |
-| Hard-cap spend | `maxTokenBudget` on the orchestrator | `OrchestratorConfig` |
-| Catch stuck agents | `loopDetection` with `onLoopDetected: 'terminate'` (or a custom handler) | `AgentConfig` |
-| Trace and audit | `onTrace` to your tracing backend; persist `renderTeamRunDashboard(result)` | `OrchestratorConfig` |
-| Redact secrets | Automatic — API keys, tokens, and Authorization headers stripped from traces, bash output, and dashboard payloads | built-in (on by default) |
+| Concern                  | Knob                                                                                                                                                                                                                                                                                                                                           | Where it lives                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Bound the conversation   | `maxTurns` per agent + `contextStrategy` (`sliding-window` / `summarize` / `compact` / `custom`)                                                                                                                                                                                                                                               | `AgentConfig`                        |
+| Bound wall-clock time    | `timeoutMs` per agent (aborts a run that hangs, common with local models)                                                                                                                                                                                                                                                                      | `AgentConfig`                        |
+| Cap tool output          | `maxToolOutputChars` (or per-tool `maxOutputChars`) + `compressToolResults: true`                                                                                                                                                                                                                                                              | `AgentConfig` and `defineTool()`     |
+| Recover from failure     | Per-task `maxRetries`, `retryDelayMs`, `retryBackoff` (exponential multiplier)                                                                                                                                                                                                                                                                 | Task config used via `runTasks()`    |
+| Hard-cap spend           | `maxTokenBudget` on the orchestrator                                                                                                                                                                                                                                                                                                           | `OrchestratorConfig`                 |
+| Catch stuck agents       | `loopDetection` with `onLoopDetected: 'terminate'` (or a custom handler)                                                                                                                                                                                                                                                                       | `AgentConfig`                        |
+| Trace and audit          | `onTrace` to your tracing backend; persist `renderTeamRunDashboard(result)`                                                                                                                                                                                                                                                                    | `OrchestratorConfig`                 |
+| Redact secrets           | Automatic — API keys, tokens, and Authorization headers stripped from traces, bash output, and dashboard payloads                                                                                                                                                                                                                              | built-in (on by default)             |
 | Grant tools deliberately | Built-in tools are opt-in (default-deny): an agent gets only what it lists in `tools` / `toolPreset`; list neither and it gets none. `bash` stays unsandboxed once granted, and every tool result is sent to your model provider — so grant read/exec access on purpose. `defaultToolPreset` restores the old "all tools" behavior in one line | `AgentConfig` / `OrchestratorConfig` |
-| Bound filesystem reach | `cwd` / `defaultCwd` (default `.agent-workspace` subdir; widen with `process.cwd()`, disable with `null`) | `AgentConfig` / `OrchestratorConfig` |
+| Bound filesystem reach   | `cwd` / `defaultCwd` (default `.agent-workspace` subdir; widen with `process.cwd()`, disable with `null`)                                                                                                                                                                                                                                      | `AgentConfig` / `OrchestratorConfig` |
 
 ## Documentation
 
