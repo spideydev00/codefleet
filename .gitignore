@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+.DS_Store
+codefleet-dashboards/
+.agent-workspace/
+.github/brand/frames/
+.claude/
+.npmrc
+.env

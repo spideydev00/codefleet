@@ -1,0 +1,26 @@
+{
+  "name": "codefleet",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Private workspace root for the codefleet monorepo. The published package is @codefleet/core in packages/core.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @codefleet/core",
+    "dev": "npm run dev -w @codefleet/core",
+    "test": "npm run test -w @codefleet/core",
+    "test:watch": "npm run test:watch -w @codefleet/core",
+    "test:coverage": "npm run test:coverage -w @codefleet/core",
+    "test:e2e": "npm run test:e2e -w @codefleet/core",
+    "lint": "npm run lint -w @codefleet/core"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spideydev00/codefleet.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

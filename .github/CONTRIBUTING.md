@@ -1,0 +1,72 @@
+# Contributing
+
+Thanks for your interest in contributing to CodeFleet! This guide covers the basics to get you started.
+
+## Setup
+
+```bash
+git clone https://github.com/spideydev00/codefleet.git
+cd codefleet
+npm install
+```
+
+Requires Node.js >= 18.
+
+## Development Commands
+
+```bash
+npm run build        # Compile TypeScript (packages/core/src/ → packages/core/dist/)
+npm run dev          # Watch mode compilation
+npm run lint         # Type-check (tsc --noEmit)
+npm test             # Run all tests (vitest)
+npm run test:watch   # Vitest watch mode
+```
+
+## Running Tests
+
+All tests live in `packages/core/tests/` and run without API keys or network access — adapter tests mock the provider SDKs, and the rest cover core modules (TaskQueue, SharedMemory, ToolExecutor, Semaphore, and more).
+
+```bash
+npm test
+```
+
+Every PR must pass `npm run lint && npm test`. CI runs both automatically on Node 18, 20, and 22.
+
+## Making a Pull Request
+
+1. Fork the repo and create a branch from `main`
+2. Make your changes
+3. Add or update tests if you changed behavior
+4. Run `npm run lint && npm test` locally
+5. Open a PR against `main`
+
+### PR Checklist
+
+- [ ] `npm run lint` passes
+- [ ] `npm test` passes
+- [ ] New behavior has test coverage
+- [ ] Linked to a relevant issue (if one exists)
+
+## Code Style
+
+- TypeScript strict mode, ES modules (`.js` extensions in imports)
+- No additional linter/formatter configured — follow existing patterns
+- Keep dependencies minimal (currently 3 runtime deps: `@anthropic-ai/sdk`, `openai`, `zod`)
+
+## Architecture Overview
+
+See the [README](../packages/core/README.md#architecture) for an architecture diagram. Key entry points:
+
+- **Orchestrator**: `packages/core/src/orchestrator/orchestrator.ts` — top-level API
+- **Task system**: `packages/core/src/task/queue.ts`, `packages/core/src/task/task.ts` — dependency DAG
+- **Agent**: `packages/core/src/agent/runner.ts` — conversation loop
+- **Tools**: `packages/core/src/tool/framework.ts`, `packages/core/src/tool/executor.ts` — tool registry and execution
+- **LLM adapters**: `packages/core/src/llm/` — 12 built-in providers + OpenAI-compatible + AI SDK bridge (see [docs/providers.md](../docs/providers.md))
+
+## Where to Contribute
+
+Check the [issues](https://github.com/spideydev00/codefleet/issues) page. Issues labeled `good first issue` are scoped and approachable. Issues labeled `help wanted` are larger but well-defined.
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the MIT License.
